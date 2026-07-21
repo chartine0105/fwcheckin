@@ -1,0 +1,19 @@
+name: 废文网签到
+
+on:
+  schedule:
+    - cron: "5 0 * * *"   # 00:05 UTC = 北京时间 08:05
+  workflow_dispatch: {}      # 支持手动触发
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Run checkin
+        env:
+          fwxs: ${{ secrets.fwxs }}
+        run: node fwxs_checkin.js
