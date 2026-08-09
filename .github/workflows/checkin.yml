@@ -1,19 +1,31 @@
-name: 废文网签到
+name: Daily check-in
 
 on:
   schedule:
-    - cron: "5 0 * * *"   # 00:05 UTC = 北京时间 08:05
-  workflow_dispatch: {}      # 支持手动触发
+    - cron: "5 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fwcheckin-daily
+  cancel-in-progress: false
 
 jobs:
   checkin:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: "20"
-      - name: Run checkin
+          node-version: 22
+
+      - name: Run check-in
         env:
-          fwxs: ${{ secrets.fwxs }}
+          fwxs: ${{ secrets.FWXS }}
         run: node fwxs_checkin.js

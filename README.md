@@ -32,7 +32,7 @@ Get the cookie: log in, open DevTools → Network → refresh → copy the `Cook
 fwxs="your-cookie" node fwxs_checkin.js
 ```
 
-**GitHub Actions** — add a repository secret named `fwxs`. The bundled workflow runs daily at 00:05 UTC (08:05 Beijing) and can be triggered manually. Use a private repo to keep the cookie safe.
+**GitHub Actions** — add a repository secret named `FWXS`. The bundled workflow runs daily at 00:05 UTC (08:05 Beijing) and can be triggered manually. Never commit the cookie to the repository.
 
 ## License
 
