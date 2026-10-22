@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4 # 顺便帮你把版本号改成了更稳定的 v4
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -27,7 +27,6 @@ jobs:
 
       - name: Run check-in
         env:
-          fwxs: ${{ secrets.fwxs }} 
-          # 下面这一行是新加的，用来传递微信推送 Token
-          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }} 
+          # 只传 Cookie，不需要 PushPlus 了
+          fwxs: ${{ secrets.fwxs }}
         run: node fwxs_checkin.js
