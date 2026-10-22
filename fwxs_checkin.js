@@ -1,18 +1,9 @@
 /*
- * 废文网(SosadFun) 自动签到脚本
+ * 废文网(SosadFun) 自动签到脚本 (带 GitHub Actions 微信/邮件提醒版)
  * ------------------------------------------------------------
- * 兼容：青龙面板 / 纯 Node.js(>=18) / GitHub Actions
- * 无需任何 npm 依赖（使用 Node 原生 fetch，Node 18+ 内置）
- *
  * 环境变量:
  *   fwxs = 浏览器登录废文网后的完整 Cookie
- *          多账号用 @ 分隔；每个 cookie 可用 #昵称 备注。
- *          例：  cookieA#张三@cookieB#李四
- *
- * 原理:
- *   签到接口是 web 路由 GET /qiandao（签到按钮北京时间早晨出现）。
- *   脚本请求该地址触发签到，再对比个人中心「总签到天数」判定结果，
- *   不依赖页面文案正则，稳定不易随站点改版而失效。
+ *   PUSHPLUS_TOKEN = (可选) 用于微信接收失败提醒
  */
 const BASE = "https://xn--pxtr7m.net"; // 废文.net
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
@@ -31,13 +22,11 @@ async function reqText(url, cookie, method = "GET") {
   return { status: resp.status, loc: resp.headers.get("location") || "", text: buf.toString("utf8") };
 }
 
-// 从任意页面 HTML 找到当前登录用户 id（导航栏 usercenter 链接）
 function findUserId(html) {
   const m = html.match(/\/users\/(\d+)\/usercenter/);
   return m ? m[1] : null;
 }
 
-// 解析个人中心的签到状态
 function parseState(html) {
   const t = stripTags(html);
   const num = (re) => {
@@ -59,12 +48,11 @@ async function runOne(cookie, label) {
     const uid = findUserId(home.text);
     if (!uid) {
       console.log(`${tag} ❌ Cookie 无效或已过期（未登录）`);
-      return `${tag} ❌ Cookie 失效`;
+      return { success: false, msg: `${tag} ❌ Cookie 失效` }; // 标记失败
     }
     const ucUrl = `${BASE}/users/${uid}/usercenter`;
     const before = parseState((await reqText(ucUrl, cookie)).text);
 
-    // 触发签到（签到在服务端即刻完成，无需跟随跳转）
     const q = await reqText(BASE + "/qiandao", cookie);
 
     const after = parseState((await reqText(ucUrl, cookie)).text);
@@ -81,37 +69,63 @@ async function runOne(cookie, label) {
       result = `${tag} ⚠️ 状态未变（HTTP ${q.status}）连续${after.cont}天 / 总${after.total}天（最新：${after.latest}）`;
     }
     console.log(result);
-    return result;
+    return { success: true, msg: result };
   } catch (e) {
     const msg = `${tag} ❌ 异常：${e.message}`;
     console.log(msg);
-    return msg;
+    return { success: false, msg: msg }; // 标记异常失败
   }
 }
 
-// 青龙通知（配置了通知渠道时自动推送；其它环境静默跳过）
+// 发送通知（支持 PushPlus 和 青龙）
 async function pushNotify(title, content) {
   try {
-    if (typeof QLAPI !== "undefined" && QLAPI.systemNotify) await QLAPI.systemNotify({ title, content });
+    // 1. 青龙面板支持
+    if (typeof QLAPI !== "undefined" && QLAPI.systemNotify) {
+      await QLAPI.systemNotify({ title, content });
+    }
+    // 2. PushPlus (微信推送)
+    const pushToken = process.env.PUSHPLUS_TOKEN;
+    if (pushToken) {
+      await fetch("http://www.pushplus.plus/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: pushToken, title: title, content: content })
+      });
+    }
   } catch (e) {
     console.log("通知发送失败(可忽略):", e.message);
   }
 }
 
 (async () => {
-  const raw = process.env.fwxs || "";
+  const raw = process.env.fwxs || ""; // 注意：原作者要求变量名是小写的 fwxs，你 Secret 名字别填错
   if (!raw.trim()) {
     console.log("❌ 未配置环境变量 fwxs");
     process.exit(1);
   }
   const accounts = raw.split("@").map((s) => s.trim()).filter(Boolean);
   console.log(`共 ${accounts.length} 个账号`);
+  
   const results = [];
+  let hasError = false; // 用来记录是否有账号失败了
+
   for (let i = 0; i < accounts.length; i++) {
     const parts = accounts[i].split("#");
     const cookie = parts[0].trim();
     const label = (parts[1] || `账号${i + 1}`).trim();
-    results.push(await runOne(cookie, label));
+    const res = await runOne(cookie, label);
+    
+    if (!res.success) hasError = true; // 只要有一个失败，就标记
+    results.push(res.msg);
   }
-  await pushNotify("废文网签到", results.join("\n"));
+
+  const finalMsg = results.join("\n");
+  await pushNotify("废文网签到", finalMsg);
+
+  // 核心改动：如果有任何一个账号失败，让 GitHub Actions 报错变红，触发邮件提醒！
+  if (hasError) {
+    console.log("::error::检测到签到失败或 Cookie 过期，请及时检查！");
+    process.exit(1); 
+  }
 })();
