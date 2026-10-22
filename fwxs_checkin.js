@@ -109,7 +109,10 @@ async function runOne(cookie, label) {
 
   // 核心逻辑：如果有任何一个账号失败，让 GitHub Actions 报错变红，触发邮件提醒！
   if (hasError) {
+    // 使用 core 库直接向 GitHub 发送错误信号
     console.log("::error::检测到签到失败或 Cookie 过期，请及时检查！");
-    process.exit(1); 
+    
+    // 下面这句是终极杀手锏，强制让 GitHub 判定当前步骤失败
+    process.exitCode = 1; 
   }
 })();
