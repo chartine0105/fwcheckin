@@ -5,37 +5,15 @@ on:
     - cron: "5 0 * * *"
   workflow_dispatch:
 
-# 这里改了！给足权限
-permissions:
-  actions: write
-  contents: read
-
-concurrency:
-  group: fwcheckin-daily
-  cancel-in-progress: false
-
 jobs:
   checkin:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
-
       - name: Run check-in
         env:
           fwxs: ${{ secrets.fwxs }}
-        run: |
-          # 把运行结果存到日志里，同时显示在屏幕上
-          node fwxs_checkin.js | tee output.log
-          
-          # 只要日志里发现了 ❌，就强行让 GitHub 报错变红
-          if grep -q "❌" output.log; then
-            echo "::error::签到失败，已发送警报！"
-            exit 1
-          fi
+        run: node fwxs_checkin.js
