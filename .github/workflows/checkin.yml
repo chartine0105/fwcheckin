@@ -5,7 +5,9 @@ on:
     - cron: "5 0 * * *"
   workflow_dispatch:
 
+# 这里改了！给足权限
 permissions:
+  actions: write
   contents: read
 
 concurrency:
@@ -26,7 +28,14 @@ jobs:
           node-version: 22
 
       - name: Run check-in
-        shell: bash
         env:
           fwxs: ${{ secrets.fwxs }}
-        run: node fwxs_checkin.js
+        run: |
+          # 把运行结果存到日志里，同时显示在屏幕上
+          node fwxs_checkin.js | tee output.log
+          
+          # 只要日志里发现了 ❌，就强行让 GitHub 报错变红
+          if grep -q "❌" output.log; then
+            echo "::error::签到失败，已发送警报！"
+            exit 1
+          fi
