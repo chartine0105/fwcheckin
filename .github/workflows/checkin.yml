@@ -1,3 +1,4 @@
+
 name: Daily check-in
 
 on:
@@ -8,19 +9,18 @@ on:
 jobs:
   checkin:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Run check-in
         env:
           fwxs: ${{ secrets.fwxs }}
-        run: |
-          node fwxs_checkin.js
-          # 捕获 node 脚本的退出代码
-          if [ $? -ne 0 ]; then
-            echo "::error::脚本报错，强制结束！"
-            exit 1
-          fi
+        run: node fwxs_checkin.js
