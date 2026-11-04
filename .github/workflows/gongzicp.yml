@@ -1,0 +1,33 @@
+name: 公子CP自动签到
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 每天北京时间/新加坡时间 00:10（GitHub Actions cron 使用 UTC）
+    - cron: "10 16 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gongzicp-checkin
+  cancel-in-progress: false
+
+jobs:
+  checkin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run GongziCP check-in
+        env:
+          GZCP_ACCOUNTS: ${{ secrets.GZCP_ACCOUNTS }}
+          GZCP_TIME_ZONE: Asia/Shanghai
+        run: node gongzicp.js
