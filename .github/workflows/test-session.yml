@@ -1,0 +1,23 @@
+
+name: 公子CP登录恢复测试
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Test persistent session
+        env:
+          GZCP_PERSISTENT_COOKIES: ${{ secrets.GZCP_PERSISTENT_COOKIES }}
+        run: node test-session.js
